@@ -1,12 +1,11 @@
 # Conquest_gym
 
-setting
--anaconda
--CUDA(option)
--tensorflow
--Openai gym
-
--Pycharm
+setting<br>
+-anaconda<br>
+-CUDA(option) <br>
+-tensorflow<br>
+-Openai gym<br>
+-Pycharm<br>
 
 reference
 * https://www.tensorflow.org/
