@@ -115,3 +115,29 @@ class DQN:
                          })
 
         return cost_val
+
+    def train_DDQN(self):
+        state, next_state, action, reward, terminal = self._sample_memory()
+
+        target_Q_value = self.session.run(self.target_Q,
+                                          feed_dict={self.input_X: next_state})
+        Q_value = self.session.run(self.Q,
+                                          feed_dict={self.input_X: next_state})
+        main_action = np.argmax(Q_value, axis=1)
+
+        Y = []
+        for i in range(self.BATCH_SIZE):
+            if terminal[i]:
+                Y.append(reward[i])
+            else:
+                Q_prime = target_Q_value[i][main_action[i]]
+                Y.append(reward[i] + self.GAMMA * Q_prime)
+
+        _, cost_val = self.session.run([self.train_op, self.cost],
+                                       feed_dict={
+                                           self.input_X: state,
+                                           self.input_A: action,
+                                           self.input_Y: Y
+                                       })
+
+        return cost_val

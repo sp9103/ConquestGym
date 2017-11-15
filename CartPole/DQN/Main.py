@@ -6,11 +6,16 @@ import gym
 
 from Model import DQN
 
-tf.app.flags.DEFINE_boolean("train", False, "학습모드. 게임을 화면에 보여주지 않습니다.")
+#tf.app.flags.DEFINE_boolean("train", False, "학습모드. 게임을 화면에 보여주지 않습니다.")
+tf.app.flags.DEFINE_string("train", "",
+                           """method to train, """
+                           """1. DQN, """
+                           """2. Double DQN, """
+                           """ex) --train=DQN.""")
 FLAGS = tf.app.flags.FLAGS
 
 # 최대 학습 횟수
-MAX_EPISODE = 4000
+MAX_EPISODE = 400
 # 1000번의 학습마다 한 번씩 타겟 네트웍을 업데이트합니다.
 TARGET_UPDATE_INTERVAL = 1000
 # 4 프레임마다 한 번씩 학습합니다.
@@ -80,8 +85,11 @@ def train():
             net.remember(state, action, reward, terminal)
 
             if time_step > OBSERVE and time_step % TRAIN_INTERVAL == 0:
-                cost = net.train()
-                tf.summary.scalar('cost', cost)
+                if FLAGS.train == "DQN":
+                    cost = net.train()
+                elif FLAGS.train == "DDQN":
+                    cost = net.train_DDQN()
+                #elif FLAGS.train == "DuelDQN":
 
             if time_step % TARGET_UPDATE_INTERVAL == 0:
                 net.update_target_network()
@@ -159,7 +167,18 @@ def main(_):
     env.close()"""
 
     if FLAGS.train:
-        train();
+        if FLAGS.train == "DQN":
+            print("DQN train start")
+            train()
+        elif FLAGS.train == "DDQN":
+            print("Double DQN train start")
+            train()
+        elif FLAGS.train == "DuelDQN":
+            print("Duel DQN train start")
+            train()
+        else:
+            print("Invalid option\n"
+                  "DQN or Double DQN or Duel DQN")
     else:
         replay()
 
