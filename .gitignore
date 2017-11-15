@@ -1,9 +1,9 @@
-
+.DS_Store
 *.iml
 *.xml
 *.index
 *.meta
-CartPole/DQN/model/*
-CartPole/DQN/logs/*
+*/model/*
+*/logs/*
 *.pyc
 
