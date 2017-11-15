@@ -10,7 +10,7 @@ tf.app.flags.DEFINE_boolean("train", False, "학습모드. 게임을 화면에 �
 FLAGS = tf.app.flags.FLAGS
 
 # 최대 학습 횟수
-MAX_EPISODE = 50000
+MAX_EPISODE = 4000
 # 1000번의 학습마다 한 번씩 타겟 네트웍을 업데이트합니다.
 TARGET_UPDATE_INTERVAL = 1000
 # 4 프레임마다 한 번씩 학습합니다.
@@ -81,6 +81,7 @@ def train():
 
             if time_step > OBSERVE and time_step % TRAIN_INTERVAL == 0:
                 cost = net.train()
+                tf.summary.scalar('cost', cost)
 
             if time_step % TARGET_UPDATE_INTERVAL == 0:
                 net.update_target_network()
