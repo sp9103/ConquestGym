@@ -9,6 +9,6 @@
 - Duel DQN
 
 # Result of Train (400 episode)
-![DQN](./img/DDQN-avg_reward%25ep.jpg)
+![DQN](./img/DQN-avg_reward%25ep.jpg)
 ![DDQN](./img/DDQN-avg_reward%25ep.jpg) 
 
