@@ -10,4 +10,4 @@
 
 
 #Result of Train (400 episode)
-![DQN](DQN-avg_reward%ep.PNG) ![DDQN](DDQN-avg_reward%ep.png) 
+- ![DQN](img/DQN-avg_reward%ep.PNG) ![DDQN](img/DDQN-avg_reward%ep.png) 
