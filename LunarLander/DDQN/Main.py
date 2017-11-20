@@ -60,6 +60,9 @@ def train():
             else:
                 action = net.get_action()
 
+            if episode > OBSERVE:
+                epsilon -= 1 / 1000
+
             state, reward, terminal, info = game.step(action)
             total_reward += reward
 
