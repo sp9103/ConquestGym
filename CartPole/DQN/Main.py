@@ -96,7 +96,7 @@ def train():
 
             time_step += 1
 
-            game.render()
+            #game.render()
 
         print('게임횟수: %d 점수: %.1f cost : %f' % (episode + 1, total_reward, cost))
 
