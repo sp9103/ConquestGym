@@ -3,8 +3,9 @@
 import tensorflow as tf
 import numpy as np
 import random
-from collections import deque
 
+from collections import deque
+from SumTree import Memory
 
 class DQN:
     # 학습에 사용할 플레이결과를 얼마나 많이 저장해서 사용할지를 정합니다.
@@ -18,13 +19,12 @@ class DQN:
     # 앞의 상태까지 고려하기 위함입니다.
     STATE_LEN = 4
 
-    def __init__(self, session, width, height, n_action):
+    def __init__(self, session, width, height, n_action, prioritized=False):
         self.session = session
         self.n_action = n_action
         self.width = width
         self.height = height
-        # 게임 플레이결과를 저장할 메모리
-        self.memory = deque()
+
         # 현재 게임판의 상태
         self.state = None
 
@@ -36,12 +36,19 @@ class DQN:
         # 손실값을 계산하는데 사용할 입력값입니다. train 함수를 참고하세요.
         self.input_Y = tf.placeholder(tf.float32, [None])
 
+        self.prioritized = prioritized
         self.Q = self._build_network('main')
         self.cost, self.train_op = self._build_op()
 
         # 학습을 더 잘 되게 하기 위해,
         # 손실값 계산을 위해 사용하는 타겟(실측값)의 Q value를 계산하는 네트웍을 따로 만들어서 사용합니다
         self.target_Q = self._build_network('target')
+
+        # prioritized experience replay
+        if self.prioritized :
+            self.memory = Memory(capacity=self.REPLAY_MEMORY)
+        else :
+            self.memory = deque()
 
     def _build_network(self, name):
         with tf.variable_scope(name):
@@ -60,7 +67,13 @@ class DQN:
         # Perform a gradient descent step on (y_j-Q(ð_j,a_j;θ))^2
         one_hot = tf.one_hot(self.input_A, self.n_action, 1.0, 0.0)
         Q_value = tf.reduce_sum(tf.multiply(self.Q, one_hot), axis=1)
-        cost = tf.reduce_mean(tf.square(self.input_Y - Q_value))
+        TD_diff = self.input_Y - Q_value
+        if self.prioritized:
+            self.ISWeights = tf.placeholder(tf.float32, [None, 1], name='IS_weights')
+            self.abs_error = tf.reduce_sum(tf.abs(TD_diff), axis=1)    # for updating Sumtree
+            cost = tf.reduce_mean(self.ISWeights * tf.square(TD_diff))
+        else:
+           cost = tf.reduce_mean(tf.square(TD_diff))
         train_op = tf.train.AdamOptimizer(1e-6).minimize(cost)
 
         return cost, train_op
@@ -101,25 +114,39 @@ class DQN:
         next_state = np.reshape(state, (self.width, self.height, 1))
         next_state = np.append(self.state[:, :, 1:], next_state, axis=2)
 
-        # 플레이결과, 즉, 액션으로 얻어진 상태와 보상등을 메모리에 저장합니다.
-        self.memory.append((self.state, next_state, action, reward, terminal))
+        if self.prioritized:
+            transition = np.hstack((state, next_state, action, reward, terminal))
+            self.memory.store(transition)
+        else :
+            # 플레이결과, 즉, 액션으로 얻어진 상태와 보상등을 메모리에 저장합니다.
+            self.memory.append((self.state, next_state, action, reward, terminal))
 
-        # 저장할 플레이결과의 갯수를 제한합니다.
-        if len(self.memory) > self.REPLAY_MEMORY:
-            self.memory.popleft()
+            # 저장할 플레이결과의 갯수를 제한합니다.
+            if len(self.memory) > self.REPLAY_MEMORY:
+                self.memory.popleft()
 
         self.state = next_state
 
     def _sample_memory(self):
-        sample_memory = random.sample(self.memory, self.BATCH_SIZE)
+        if self.prioritized:
+            tree_idx, batch_memory, ISWeights = self.memory.sample(self.BATCH_SIZE)
+            # TO-DO
+        else:
+            state = next_state = np.empty(self.memory[0][0].shape)
+            action = np.empty(1)
+            reward = np.empty(1)
+            terminal = np.empty(1)
 
-        state = [memory[0] for memory in sample_memory]
-        next_state = [memory[1] for memory in sample_memory]
-        action = [memory[2] for memory in sample_memory]
-        reward = [memory[3] for memory in sample_memory]
-        terminal = [memory[4] for memory in sample_memory]
+            tree_idx = random.sample(range(0, len(self.memory)), self.BATCH_SIZE)
+            # TO-DO
+            for i in tree_idx:
+                state.append(self.memory[i][0])
+                next_state.append(self.memory[i][1])
+                action.append(self.memory[i][2])
+                reward.append(self.memory[i][3])
+                terminal.append(self.memory[i][4])
 
-        return state, next_state, action, reward, terminal
+        return state, next_state, action, reward, terminal, tree_idx
 
     def train(self):
         # 게임 플레이를 저장한 메모리에서 배치 사이즈만큼을 샘플링하여 가져옵니다.
@@ -140,7 +167,14 @@ class DQN:
             else:
                 Y.append(reward[i] + self.GAMMA * np.max(target_Q_value[i]))
 
-        self.session.run(self.train_op,
+        if self.prioritized:
+            _, abs_errors, self.cost = self.sess.run([self._train_op, self.abs_errors, self.loss],
+                                                     feed_dict={self.s: batch_memory[:, :self.n_features],
+                                                                self.q_target: q_target,
+                                                                self.ISWeights: ISWeights})
+            self.memory.batch_update(tree_idx, abs_errors)  # update priority
+        else :
+           self.session.run(self.train_op,
                          feed_dict={
                              self.input_X: state,
                              self.input_A: action,
