@@ -13,7 +13,7 @@ tf.app.flags.DEFINE_string("train", "",
                            """ex) --train=DQN.""")
 FLAGS = tf.app.flags.FLAGS
 
-MAX_EPISODE = 40000
+MAX_EPISODE = 15000
 OBSERVE = 100
 TRAIN_INTERVAL = 4
 TARGET_UPDATE_INTERVAL = 1000
@@ -60,6 +60,9 @@ def train():
             else:
                 action = net.get_action()
 
+            if episode > OBSERVE:
+                epsilon -= 1 / 1000
+
             state, reward, terminal, info = game.step(action)
             total_reward += reward
 
@@ -94,31 +97,31 @@ def train():
 
 def replay():
     print('let\'s start train')
-    #sess = tf.Session()
+    sess = tf.Session()
 
     game = gym.make('LunarLander-v2')
     #NUM_ACTION = game.action_space.size.count()   <-action space의 사이즈 어떻게 받는지 알면 알려주셈
     NUM_ACTION = 4
     NUM_STATE = game.observation_space.shape[0]
-    #net = DQN(sess, NUM_STATE, NUM_ACTION)  # example has 4 state
+    net = DQN(sess, NUM_STATE, NUM_ACTION)  # example has 4 state
 
-    #saver = tf.train.Saver()
-    #ckpt = tf.train.get_checkpoint_state('model')
-    #saver.restore(sess, ckpt.model_checkpoint_path)
+    saver = tf.train.Saver()
+    ckpt = tf.train.get_checkpoint_state('model')
+    saver.restore(sess, ckpt.model_checkpoint_path)
 
     for episode in range(MAX_EPISODE):
         terminal = False
 
         state = game.reset()
-        #net.init_state(state)
+        net.init_state(state)
 
         while not terminal:
-            #action = net.get_action()
-            action = random.randrange(NUM_ACTION)
+            action = net.get_action()
+            #action = random.randrange(NUM_ACTION)
             state, reward, terminal, info = game.step(action)
-            #net.remember(state, action, reward, terminal)
+            net.remember(state, action, reward, terminal)
 
-            time.sleep(0.1)
+            #time.sleep(0.1)
             game.render()
 
     game.close()

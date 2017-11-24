@@ -7,6 +7,7 @@ class DQN:
     REPLAY_MEMORY = 10000
     BATCH_SIZE = 64
     GAMMA = 0.99
+    STATE_LEN = 2
 
     def __init__(selfs, session, dim, n_action):
         selfs.session = session
@@ -15,7 +16,7 @@ class DQN:
         selfs.state = None
         selfs.dimension = dim           #state dimesion
 
-        selfs.input_X = tf.placeholder(tf.float32, [None, dim])
+        selfs.input_X = tf.placeholder(tf.float32, [None, dim * selfs.STATE_LEN])
         selfs.input_A = tf.placeholder(tf.int64, [None])
         selfs.input_Y = tf.placeholder(tf.float32, [None])
 
@@ -27,19 +28,21 @@ class DQN:
     def _build_network(selfs, name):
         with tf.variable_scope(name):
             model = tf.layers.dense(selfs.input_X, 32, activation=tf.nn.relu)
+            model = tf.layers.batch_normalization(model)
             model = tf.layers.dense(model, 32, activation=tf.nn.relu)
+            model = tf.layers.batch_normalization(model)
             model = tf.layers.dense(model, 16, activation=tf.nn.relu)
+            model = tf.layers.batch_normalization(model)
 
             Q = tf.layers.dense(model, selfs.n_action, activation=None)
 
         return Q
 
     def _build_op(self):
-        # it will be updated DQN -> Doubling DQN
         one_hot = tf.one_hot(self.input_A, self.n_action, 1.0, 0.0)
         Q_value = tf.reduce_sum(tf.multiply(self.Q, one_hot), axis=1)
         cost = tf.reduce_mean(tf.square(self.input_Y - Q_value))
-        train_op = tf.train.AdamOptimizer(1e-4).minimize(cost)
+        train_op = tf.train.AdamOptimizer(0.001).minimize(cost)
 
         return cost, train_op
 
@@ -63,10 +66,12 @@ class DQN:
         return action
 
     def init_state(self, state):
-        self.state = state
+        state = [state for _ in range(self.STATE_LEN)]
+        self.state = np.reshape(state, self.dimension * self.STATE_LEN)
 
     def remember(self, state, action, reward, terminal):
-        next_state = state
+        pop_state = self.state[self.dimension:]
+        next_state = np.append(pop_state, state, axis=0)
 
         self.memory.append((self.state, next_state, action, reward, terminal))
 
