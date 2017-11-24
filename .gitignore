@@ -12,3 +12,4 @@ CartPole/DQN/model/checkpoint
 LunarLander/DDQN/model/checkpoint
 LunarLander/DDQN/logs/events.out.tfevents.1511141116.SUNGPHILL-PC
 *.SUNGPHILL-PC
+*.py___jb_tmp___

@@ -128,23 +128,26 @@ class DQN:
         self.state = next_state
 
     def _sample_memory(self):
+        tree_idx = np.empty((self.BATCH_SIZE,), dtype=np.int32)
+
         if self.prioritized:
             tree_idx, batch_memory, ISWeights = self.memory.sample(self.BATCH_SIZE)
             # TO-DO
         else:
-            state = next_state = np.empty(self.memory[0][0].shape)
-            action = np.empty(1)
-            reward = np.empty(1)
-            terminal = np.empty(1)
+            state = next_state = np.empty((self.BATCH_SIZE, self.memory[0][0].shape[0], self.memory[0][0].shape[1], self.memory[0][0].shape[2]))
+            action = np.empty((self.BATCH_SIZE, self.n_action))
+            reward = np.empty((self.BATCH_SIZE, 1))
+            terminal = np.empty((self.BATCH_SIZE, 1))
 
             tree_idx = random.sample(range(0, len(self.memory)), self.BATCH_SIZE)
             # TO-DO
-            for i in tree_idx:
-                state.append(self.memory[i][0])
-                next_state.append(self.memory[i][1])
-                action.append(self.memory[i][2])
-                reward.append(self.memory[i][3])
-                terminal.append(self.memory[i][4])
+            for i in range(0,len(self.memory)):
+                idx = tree_idx[i]
+                state[i,:] = self.memory[idx][0]
+                next_state[i, :] = self.memory[idx][1]
+                action[i, :] = self.memory[idx][2]
+                reward[i] = self.memory[idx][3]
+                terminal[i] = self.memory[idx][4]
 
         return state, next_state, action, reward, terminal, tree_idx
 
