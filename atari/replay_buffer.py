@@ -3,11 +3,10 @@ import random
 from datetime import datetime
 
 class ReplayBuffer(object):
-    MAX_LEN=100000
-
-    def __init__(self):
-        self.buffer = deque([], self.MAX_LEN)
+    def __init__(self, max_len=100000):
         random.seed(datetime.now())
+        self.buffer = deque([], max_len)
+        self.max_len = max_len
 
     def size(self):
         return len(self.buffer)

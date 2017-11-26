@@ -1,7 +1,9 @@
 import gym
+import numpy as np
 import matplotlib.pyplot as plt
 
 from agent import RandomAgent
+from ddpg import *
 from replay_buffer import ReplayBuffer
 import util
 
@@ -19,6 +21,7 @@ if __name__ == '__main__':
     reward = 0
     bRender = True
     bTrain = True
+    tau = .01
 
     batch_size = 5
 
@@ -30,6 +33,17 @@ if __name__ == '__main__':
     else:
         # randomly initialize critic network Q(s,a|\theta^Q) and actor \mu(s|\theta^\mu) with \theta^Q and \theta^\mu
         a = 1
+    
+    # dim_state = env.observation_space.shape[0]
+    dim_state = (84,84,4)
+    dim_action = env.action_space.shape[0]
+
+    sess = tf.Session()
+
+    actor = ActorNetwork(sess, dim_state, dim_action)
+    actor.update_target_network()
+
+    critic = CriticNetwork(sess, dim_state, dim_action)
         
     # initialize target network Q' and \mu' with weights \theta^{Q'} <- \theta^Q, \theta^{\mu'} <- \theta^\mu
     
