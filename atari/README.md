@@ -1,4 +1,7 @@
-# Vanilla implementation of playing atari paper in tensorflow
+# Vanilla implementation of DQN/DDPG agent to play Atari
 
 ### Todo
-- add training and replaying routines
+- DDPG
+  - implement actor and critic
+- [pending] DQN
+  - add training and replaying routines

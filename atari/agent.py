@@ -5,4 +5,3 @@ class RandomAgent(object):
     def act(self, observation, reward, done):
         return self.action_space.sample()
 
-
