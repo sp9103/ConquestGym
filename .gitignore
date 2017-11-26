@@ -7,6 +7,8 @@
 */logs/*
 *.pyc
 
+.*.swp
+
 *.data-00000-of-00001
 CartPole/DQN/model/checkpoint
 LunarLander/DDQN/model/checkpoint

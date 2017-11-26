@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class NetworkBase:
-    def __init__(self, sess, dim_state, dim_action, batch_size=16, tau=.01, learning_rate=.001):
+    def __init__(self, sess, dim_state, dim_action, batch_size, tau, learning_rate):
         self.sess = sess
         
         self.dim_state = dim_state
@@ -21,10 +21,12 @@ class NetworkBase:
 
 
 class ActorNetwork(NetworkBase):
-    def __init__(self, sess, dim_state, dim_action):
-        super().__init__(sess, dim_state, dim_action)
+    def __init__(self, sess, dim_state, dim_action, batch_size=16, tau=1e-3, learning_rate=1e-4):
+        super().__init__(sess, dim_state, dim_action, batch_size, tau, learning_rate)
+
         self.network, self.state = self.__build_network(self.network_name())
         self.weights = tf.trainable_variables()
+
         self.target_network, _ = self.__build_network(self.network_name() + '_target')
         self.target_weights = tf.trainable_variables()[len(self.weights):]
 
@@ -54,8 +56,9 @@ class ActorNetwork(NetworkBase):
 
 
 class CriticNetwork(NetworkBase):
-    def __init__(self, sess, dim_state, dim_action):
-        super().__init__(sess, dim_state, dim_action)
+    def __init__(self, sess, dim_state, dim_action, batch_size=16, tau=1e-3, learning_rate=1e-3):
+
+        super().__init__(sess, dim_state, dim_action, batch_size, tau, learning_rate)
 
     # update critic
     def update_critic(self):
