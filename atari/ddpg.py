@@ -12,22 +12,24 @@ class NetworkBase:
         self.tau = tau
         self.learning_rate = learning_rate
 
-    # update target network
-    def update_target_network(self):
-        tau = self.tau
-        # refer to http://pemami4911.github.io/blog/2016/08/21/ddpg-rl.html#Tensorflow
-        # which one is better between multiple run and single run
-        self.sess.run([self.target_weights[i].assign(tau * self.weights[i] + (1-tau) * self.target_weights[i]) for i in range(len(self.weights))])
+    # refer to http://pemami4911.github.io/blog/2016/08/21/ddpg-rl.html#Tensorflow
+    # which one is better between multiple run and single run
+    def update_target_network(self, b_init=False):
+        if b_init:
+            self.sess.run([self.target_weights[i].assign(self.weights[i]) for i in range(len(self.weights))])
+        else:
+            tau = self.tau
+            self.sess.run([self.target_weights[i].assign(tau * self.weights[i] + (1-tau) * self.target_weights[i]) for i in range(len(self.weights))])
 
 
 class ActorNetwork(NetworkBase):
     def __init__(self, sess, dim_state, dim_action, batch_size=16, tau=1e-3, learning_rate=1e-4):
         super().__init__(sess, dim_state, dim_action, batch_size, tau, learning_rate)
 
-        self.network, self.state = self.__build_network(self.network_name())
+        self.network, self.state = self.__build_network('actor')
         self.weights = tf.trainable_variables()
 
-        self.target_network, _ = self.__build_network(self.network_name() + '_target')
+        self.target_network, _ = self.__build_network('actor_target')
         self.target_weights = tf.trainable_variables()[len(self.weights):]
 
     # use dqn structure
@@ -57,7 +59,6 @@ class ActorNetwork(NetworkBase):
 
 class CriticNetwork(NetworkBase):
     def __init__(self, sess, dim_state, dim_action, batch_size=16, tau=1e-3, learning_rate=1e-3):
-
         super().__init__(sess, dim_state, dim_action, batch_size, tau, learning_rate)
 
     # update critic

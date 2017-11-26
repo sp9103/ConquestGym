@@ -32,8 +32,8 @@ if __name__ == '__main__':
 
     sess.run(tf.global_variables_initializer())
 
-    actor.update_target_network()
-    critic.update_target_network()
+    actor.update_target_network(True)
+    critic.update_target_network(True)
     
     R = ReplayBuffer()
 
