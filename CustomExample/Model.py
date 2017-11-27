@@ -129,31 +129,38 @@ class DQN:
 
     def _sample_memory(self):
         tree_idx = np.empty((self.BATCH_SIZE,), dtype=np.int32)
+        action = []
+        reward = []
+        terminal = []
+        state = []
+        next_state = []
 
         if self.prioritized:
             tree_idx, batch_memory, ISWeights = self.memory.sample(self.BATCH_SIZE)
             # TO-DO
         else:
-            state = next_state = np.empty((self.BATCH_SIZE, self.memory[0][0].shape[0], self.memory[0][0].shape[1], self.memory[0][0].shape[2]))
-            action = np.empty((self.BATCH_SIZE, self.n_action))
-            reward = np.empty((self.BATCH_SIZE, 1))
-            terminal = np.empty((self.BATCH_SIZE, 1))
-
             tree_idx = random.sample(range(0, len(self.memory)), self.BATCH_SIZE)
             # TO-DO
-            for i in range(0,len(self.memory)):
+            for i in range(self.BATCH_SIZE):
                 idx = tree_idx[i]
-                state[i,:] = self.memory[idx][0]
-                next_state[i, :] = self.memory[idx][1]
-                action[i, :] = self.memory[idx][2]
-                reward[i] = self.memory[idx][3]
-                terminal[i] = self.memory[idx][4]
+                state.append(self.memory[idx][0])
+                next_state.append(self.memory[idx][1])
+                action.append(self.memory[idx][2])
+                reward.append(self.memory[idx][3])
+                terminal.append(self.memory[idx][4])
+                """
+            sample_memory = random.sample(self.memory, self.BATCH_SIZE)
+            state = [memory[0] for memory in sample_memory]
+            next_state = [memory[1] for memory in sample_memory]
+            action = [memory[2] for memory in sample_memory]
+            reward = [memory[3] for memory in sample_memory]
+            terminal = [memory[4] for memory in sample_memory]"""
 
         return state, next_state, action, reward, terminal, tree_idx
 
     def train(self):
         # 게임 플레이를 저장한 메모리에서 배치 사이즈만큼을 샘플링하여 가져옵니다.
-        state, next_state, action, reward, terminal = self._sample_memory()
+        state, next_state, action, reward, terminal, tree_idx = self._sample_memory()
 
         # 학습시 다음 상태를 타겟 네트웍에 넣어 target Q value를 구합니다
         target_Q_value = self.session.run(self.target_Q,
@@ -183,3 +190,29 @@ class DQN:
                              self.input_A: action,
                              self.input_Y: Y
                          })
+
+    def train_DDQN(self):
+        state, next_state, action, reward, terminal, tree_idx = self._sample_memory()
+
+        target_Q_value = self.session.run(self.target_Q,
+                                          feed_dict={self.input_X: next_state})
+        Q_value = self.session.run(self.Q,
+                                          feed_dict={self.input_X: next_state})
+        main_action = np.argmax(Q_value, axis=1)
+
+        Y = []
+        for i in range(self.BATCH_SIZE):
+            if terminal[i]:
+                Y.append(reward[i])
+            else:
+                Q_prime = target_Q_value[i][main_action[i]]
+                Y.append(reward[i] + self.GAMMA * Q_prime)
+
+        _, cost_val = self.session.run([self.train_op, self.cost],
+                                       feed_dict={
+                                           self.input_X: state,
+                                           self.input_A: action,
+                                           self.input_Y: Y
+                                       })
+
+        return cost_val
