@@ -12,6 +12,16 @@ class NetworkBase:
         self.tau = tau
         self.learning_rate = learning_rate
 
+    def build_network(self, name):
+        with tf.variable_scope(name):
+            state = tf.placeholder(tf.float32, [None, self.dim_state])
+            fcn0 = tf.layers.dense(state, 400, activation=tf.nn.relu)
+            fcn1 = tf.layers.dense(fcn0, 300, activation=tf.nn.relu)
+            f_init = tf.random_uniform_initializer(-self.UNIFORM_MAX_BOUND, self.UNIFORM_MAX_BOUND)
+            model = tf.layers.dense(fcn1, self.dim_action, kernel_initializer=f_init, bias_initializer=f_init, activation=tf.tanh)
+
+            return model, state
+
     # refer to http://pemami4911.github.io/blog/2016/08/21/ddpg-rl.html#Tensorflow
     # which one is better between multiple run and single run
     def update_target_network(self, b_init=False):
@@ -23,43 +33,43 @@ class NetworkBase:
 
 
 class ActorNetwork(NetworkBase):
-    def __init__(self, sess, dim_state, dim_action, batch_size=16, tau=1e-3, learning_rate=1e-4):
+    UNIFORM_MAX_BOUND = 3e-3
+
+    def __init__(self, sess, dim_state, dim_action, batch_size=64, tau=1e-3, learning_rate=1e-4):
         super().__init__(sess, dim_state, dim_action, batch_size, tau, learning_rate)
 
-        self.network, self.state = self.__build_network('actor')
+        self.network, self.state = self.build_network('actor')
         self.weights = tf.trainable_variables()
-
-        self.target_network, _ = self.__build_network('actor_target')
+        self.target_network, _ = self.build_network('actor_target')
         self.target_weights = tf.trainable_variables()[len(self.weights):]
 
-    # use dqn structure
-    def __build_network(self, name):
-        with tf.variable_scope(name):
-            state = tf.placeholder(tf.float32, (None,)+self.dim_state)
-            # conv0: input=[84,84,4], output=[20,20,16]
-            conv0 = tf.layers.conv2d(state, 16, 8, strides=4, padding='valid', activation=tf.nn.relu)
-            # conv1: input=[20,20,16], output=[9,9,32]
-            conv1 = tf.layers.flatten(tf.layers.conv2d(conv0, 32, 4, strides=2, padding='valid', activation=tf.nn.relu))
-            # fcn2: input=[9*9*32], output=[256]
-            fcn2 = tf.layers.dense(conv1, 256, activation=tf.nn.relu)
-            # fcn3: input=[256], output=[dim_action]
-            out = tf.layers.dense(fcn2, self.dim_action)
+        self.base_ind = len(self.weights) + len(self.target_weights)
 
-            return out, state
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         
-    # select action under the current policy
-    def act(self, s_t):
-        pass
-        #self.sess.run(..., feed_dict={self.state: state})
+    def act(self, states): # \mu(s|\theta^\mu
+        return self.sess.run(self.network, feed_dict={self.state: states})
 
-    # update policy
-    def update_policy(self):
-        a = 1
+    def target_act(self, states): # \mu'(s|\theta^{\mu'}
+        return self.sess.run(self.target_network, feed_dict={self.state: states})
+
+    def update_policy(self, states, grads):
+        train = self.optimizer.apply_gradients([grads, states])
+        self.sess.run(train)
 
 
 class CriticNetwork(NetworkBase):
-    def __init__(self, sess, dim_state, dim_action, batch_size=16, tau=1e-3, learning_rate=1e-3):
+    UNIFORM_MAX_BOUND = 3e-4
+
+    def __init__(self, sess, dim_state, dim_action, base_ind, batch_size=64, tau=1e-3, learning_rate=1e-3):
         super().__init__(sess, dim_state, dim_action, batch_size, tau, learning_rate)
+
+        self.network, self.state = self.build_network('critic')
+        self.weights = tf.trainable_variables()[base_ind:]
+        base_ind = base_ind + len(self.weights)
+
+        self.target_network, _ = self.build_network('critic_target')
+        self.target_weights = tf.trainable_variables()[base_ind:]
 
     # update critic
     def update_critic(self):
