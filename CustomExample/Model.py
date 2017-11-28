@@ -70,7 +70,7 @@ class DQN:
         TD_diff = self.input_Y - Q_value
         if self.prioritized:
             self.ISWeights = tf.placeholder(tf.float32, [None, 1], name='IS_weights')
-            self.abs_error = tf.reduce_sum(tf.abs(TD_diff), axis=1)    # for updating Sumtree
+            self.abs_error = tf.reduce_sum(tf.abs(TD_diff))    # for updating Sumtree
             cost = tf.reduce_mean(self.ISWeights * tf.square(TD_diff))
         else:
            cost = tf.reduce_mean(tf.square(TD_diff))
@@ -115,8 +115,8 @@ class DQN:
         next_state = np.append(self.state[:, :, 1:], next_state, axis=2)
 
         if self.prioritized:
-            transition = np.hstack((state, next_state, action, reward, terminal))
-            self.memory.store(transition)
+            #transition = np.hstack((state, next_state, action, reward, terminal))
+            self.memory.store((state, next_state, action, reward, terminal))
         else :
             # 플레이결과, 즉, 액션으로 얻어진 상태와 보상등을 메모리에 저장합니다.
             self.memory.append((self.state, next_state, action, reward, terminal))
@@ -134,13 +134,20 @@ class DQN:
         terminal = []
         state = []
         next_state = []
+        ISWeights = []
 
         if self.prioritized:
             tree_idx, batch_memory, ISWeights = self.memory.sample(self.BATCH_SIZE)
-            # TO-DO
+
+            state = [memory[0] for memory in batch_memory]
+            next_state = [memory[1] for memory in batch_memory]
+            action = [memory[2] for memory in batch_memory]
+            reward = [memory[3] for memory in batch_memory]
+            terminal = [memory[4] for memory in batch_memory]
+
         else:
             tree_idx = random.sample(range(0, len(self.memory)), self.BATCH_SIZE)
-            # TO-DO
+
             for i in range(self.BATCH_SIZE):
                 idx = tree_idx[i]
                 state.append(self.memory[idx][0])
@@ -148,19 +155,12 @@ class DQN:
                 action.append(self.memory[idx][2])
                 reward.append(self.memory[idx][3])
                 terminal.append(self.memory[idx][4])
-                """
-            sample_memory = random.sample(self.memory, self.BATCH_SIZE)
-            state = [memory[0] for memory in sample_memory]
-            next_state = [memory[1] for memory in sample_memory]
-            action = [memory[2] for memory in sample_memory]
-            reward = [memory[3] for memory in sample_memory]
-            terminal = [memory[4] for memory in sample_memory]"""
 
-        return state, next_state, action, reward, terminal, tree_idx
+        return state, next_state, action, reward, terminal, tree_idx, ISWeights
 
     def train(self):
         # 게임 플레이를 저장한 메모리에서 배치 사이즈만큼을 샘플링하여 가져옵니다.
-        state, next_state, action, reward, terminal, tree_idx = self._sample_memory()
+        state, next_state, action, reward, terminal, tree_idx, ISWeights = self._sample_memory()
 
         # 학습시 다음 상태를 타겟 네트웍에 넣어 target Q value를 구합니다
         target_Q_value = self.session.run(self.target_Q,
@@ -179,16 +179,19 @@ class DQN:
 
         if self.prioritized:
             _, abs_errors, self.cost = self.sess.run([self._train_op, self.abs_errors, self.loss],
-                                                     feed_dict={self.s: batch_memory[:, :self.n_features],
-                                                                self.q_target: q_target,
-                                                                self.ISWeights: ISWeights})
+                                                     feed_dict={
+                                                         self.input_X: state,
+                                                         self.input_A: action,
+                                                         self.input_Y: Y
+                                                                })
             self.memory.batch_update(tree_idx, abs_errors)  # update priority
         else :
            self.session.run(self.train_op,
                          feed_dict={
                              self.input_X: state,
                              self.input_A: action,
-                             self.input_Y: Y
+                             self.input_Y: Y,
+                             self.ISWeights: ISWeights
                          })
 
     def train_DDQN(self):

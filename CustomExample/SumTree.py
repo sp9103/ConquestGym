@@ -48,13 +48,13 @@ class SumTree(object):
         """
         parent_idx = 0
         while True:     # the while loop is faster than the method in the reference code
-            cl_idx = 2 * parent_idx + 1         # this leaf's left and right kids
-            cr_idx = cl_idx + 1
+            cl_idx = 2 * parent_idx + 1         # 왼손이
+            cr_idx = cl_idx + 1                 # 오른손이
             if cl_idx >= len(self.tree):        # reach bottom, end search
-                leaf_idx = parent_idx
+                leaf_idx = parent_idx           # 왼손이 밖으로 벗어났으면 부모가 마지막이었다
                 break
             else:       # downward search, always search for a higher priority node
-                if v <= self.tree[cl_idx]:
+                if v <= self.tree[cl_idx]:      
                     parent_idx = cl_idx
                 else:
                     v -= self.tree[cl_idx]
@@ -67,7 +67,7 @@ class SumTree(object):
     def total_p(self):
         return self.tree[0]  # the root
 
-class Memory(object):  # stored as ( s, a, r, s_ ) in SumTree
+class Memory(object):  # stored as ( s, s_, a, r) in SumTree
     """
     This SumTree code is modified version and the original code is from:
     https://github.com/jaara/AI-blog/blob/master/Seaquest-DDQN-PER.py
@@ -88,7 +88,9 @@ class Memory(object):  # stored as ( s, a, r, s_ ) in SumTree
         self.tree.add(max_p, transition)  # set the max p for new p
 
     def sample(self, n):
-        b_idx, b_memory, ISWeights = np.empty((n,), dtype=np.int32), np.empty((n, self.tree.data[0].size)), np.empty((n, 1))
+        b_idx = []
+        ISWeights = []
+        b_memory = []
         pri_seg = self.tree.total_p / n  # priority segment
         self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])  # max = 1
 
@@ -98,8 +100,12 @@ class Memory(object):  # stored as ( s, a, r, s_ ) in SumTree
             v = np.random.uniform(a, b)
             idx, p, data = self.tree.get_leaf(v)
             prob = p / self.tree.total_p
-            ISWeights[i, 0] = np.power(prob / min_prob, -self.beta)
-            b_idx[i], b_memory[i, :] = idx, data
+            ISWeights.append(np.power(prob / min_prob, -self.beta))
+            ISWeights.append(np.power( self.tree.capacity * prob, -self.beta))
+            b_idx.append(idx)
+            b_memory.append(data)
+        #w_max = max(ISWeights)
+        #ISWeights = ISWeights / w_max                               #normalize? 하고나면 최대 샘플의 weight가 1이 되는데 한개 미만의 가치를 가지는 샘플도 있는거 아닌가...
         return b_idx, b_memory, ISWeights
 
     def batch_update(self, tree_idx, abs_errors):

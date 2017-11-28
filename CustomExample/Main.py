@@ -18,7 +18,7 @@ TARGET_UPDATE_INTERVAL = 1000
 # 4 프레임마다 한 번씩 학습합니다.
 TRAIN_INTERVAL = 4
 # 학습 데이터를 어느정도 쌓은 후, 일정 시간 이후에 학습을 시작하도록 합니다.
-OBSERVE = 100
+OBSERVE = 10000
 
 # action: 0: 좌, 1: 유지, 2: 우
 NUM_ACTION = 3
@@ -34,7 +34,7 @@ def train():
     sess = tf.Session()
 
     game = Game(SCREEN_WIDTH, SCREEN_HEIGHT, show_game=False)
-    brain = DQN(sess, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_ACTION)
+    brain = DQN(sess, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_ACTION, True)
 
     rewards = tf.placeholder(tf.float32, [None])
     tf.summary.scalar('avg.reward/ep.', tf.reduce_mean(rewards))
