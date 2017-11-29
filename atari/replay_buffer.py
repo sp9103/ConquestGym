@@ -11,8 +11,8 @@ class ReplayBuffer(object):
     def size(self):
         return len(self.buffer)
 
-    def store(self, s, a, r, s2):
-        transition = (s, a, r, s2)
+    def store(self, s, a, r, s2, done):
+        transition = (s, a, r, s2, done)
         self.buffer.append(transition)
 
     def clear(self):
