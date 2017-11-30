@@ -100,12 +100,12 @@ class Memory(object):  # stored as ( s, s_, a, r) in SumTree
             v = np.random.uniform(a, b)
             idx, p, data = self.tree.get_leaf(v)
             prob = p / self.tree.total_p
-            ISWeights.append(np.power(prob / min_prob, -self.beta))
+            #ISWeights.append(np.power(prob / min_prob, -self.beta))
             ISWeights.append(np.power( self.tree.capacity * prob, -self.beta))
             b_idx.append(idx)
             b_memory.append(data)
-        #w_max = max(ISWeights)
-        #ISWeights = ISWeights / w_max                               #normalize? 하고나면 최대 샘플의 weight가 1이 되는데 한개 미만의 가치를 가지는 샘플도 있는거 아닌가...
+        w_max = max(ISWeights)
+        ISWeights = ISWeights / w_max                               #normalize? 하고나면 최대 샘플의 weight가 1이 되는데 한개 미만의 가치를 가지는 샘플도 있는거 아닌가...
         return b_idx, b_memory, ISWeights
 
     def batch_update(self, tree_idx, abs_errors):

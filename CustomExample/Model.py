@@ -71,7 +71,7 @@ class DQN:
         if self.prioritized:
             self.ISWeights = tf.placeholder(tf.float32, [None, 1], name='IS_weights')
             self.abs_error = tf.reduce_sum(tf.abs(TD_diff))    # for updating Sumtree
-            cost = tf.reduce_mean(self.ISWeights * tf.square(TD_diff))
+            cost = tf.reduce_sum(self.ISWeights * tf.square(TD_diff))
         else:
            cost = tf.reduce_mean(tf.square(TD_diff))
         train_op = tf.train.AdamOptimizer(1e-6).minimize(cost)
