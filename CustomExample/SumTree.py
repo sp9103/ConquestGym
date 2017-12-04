@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 class SumTree(object):
     """
@@ -9,6 +10,7 @@ class SumTree(object):
     data_pointer = 0
 
     def __init__(self, capacity):
+        self.IsFull = False
         self.capacity = capacity  # for all priority values
         self.tree = np.zeros(2 * capacity - 1)
         # [--------------Parent nodes-------------][-------leaves to recode priority-------]
@@ -16,6 +18,7 @@ class SumTree(object):
         self.data = np.zeros(capacity, dtype=object)  # for all transitions
         # [--------------data frame-------------]
         #             size: capacity
+
 
     def add(self, p, data):
         tree_idx = self.data_pointer + self.capacity - 1
@@ -25,6 +28,9 @@ class SumTree(object):
         self.data_pointer += 1
         if self.data_pointer >= self.capacity:  # replace when exceed the capacity
             self.data_pointer = 0
+
+            if not self.IsFull:
+                self.IsFull = True
 
     def update(self, tree_idx, p):
         change = p - self.tree[tree_idx]
@@ -67,16 +73,12 @@ class SumTree(object):
     def total_p(self):
         return self.tree[0]  # the root
 
-class Memory(object):  # stored as ( s, a, r, s_ ) in SumTree
-    """
-    This SumTree code is modified version and the original code is from:
-    https://github.com/jaara/AI-blog/blob/master/Seaquest-DDQN-PER.py
-    """
+class Memory(object):
     epsilon = 0.01  # small amount to avoid zero priority
     alpha = 0.6  # [0~1] convert the importance of TD error to priority
     beta = 0.4  # importance-sampling, from initial value increasing to 1
     beta_increment_per_sampling = 0.001
-    abs_err_upper = 1.  # clipped abs error
+    abs_err_upper = 1.
 
     def __init__(self, capacity):
         self.tree = SumTree(capacity)
@@ -88,18 +90,38 @@ class Memory(object):  # stored as ( s, a, r, s_ ) in SumTree
         self.tree.add(max_p, transition)  # set the max p for new p
 
     def sample(self, n):
-        b_idx, b_memory, ISWeights = np.empty((n,), dtype=np.int32), np.empty((n, self.tree.data[0].size)), np.empty((n, 1))
-        pri_seg = self.tree.total_p / n  # priority segment
-        self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])  # max = 1
+        ISWeights = np.ones((n, 1))
+        b_idx = np.empty((n,), dtype=np.int32)
+        #b_memory = np.empty((n, self.tree.data[0].shape[0], self.tree.data[0].shape[1], self.tree.data[0].shape[2]))
+        b_memory = []
 
-        min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p  # for later calculate ISweight
-        for i in range(n):
-            a, b = pri_seg * i, pri_seg * (i + 1)
-            v = np.random.uniform(a, b)
-            idx, p, data = self.tree.get_leaf(v)
-            prob = p / self.tree.total_p
-            ISWeights[i, 0] = np.power(prob / min_prob, -self.beta)
-            b_idx[i], b_memory[i, :] = idx, data
+        # 아직 가득차지 않았으면 그냥 랜덤하게 샘플링
+        if not self.tree.IsFull:
+            b_idx = random.sample(range(0, self.tree.data_pointer), n)
+
+            for i in range(n):
+                idx = b_idx[i]
+                #b_memory[i,:] = self.tree.data[idx]
+                b_memory.append(self.tree.data[idx])
+        else:
+            pri_seg = self.tree.total_p / n  # priority segment
+            self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])  # max = 1
+            w_max = 0
+
+            min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p  # for later calculate ISweight
+            for i in range(n):
+                a, b = pri_seg * i, pri_seg * (i + 1)
+                v = np.random.uniform(a, b)
+                idx, p, data = self.tree.get_leaf(v)
+                prob = p / self.tree.total_p
+                ISWeights[i, 0] = np.power(prob / min_prob, -self.beta)
+                b_idx[i] = idx
+                b_memory.append(data)
+
+                if w_max < ISWeights[i, 0]:
+                    w_max = ISWeights[i, 0]
+
+            ISWeights = ISWeights / w_max
         return b_idx, b_memory, ISWeights
 
     def batch_update(self, tree_idx, abs_errors):

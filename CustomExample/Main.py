@@ -34,7 +34,7 @@ def train():
     sess = tf.Session()
 
     game = Game(SCREEN_WIDTH, SCREEN_HEIGHT, show_game=False)
-    brain = DQN(sess, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_ACTION)
+    brain = DQN(sess, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_ACTION, prioritized=True)
 
     rewards = tf.placeholder(tf.float32, [None])
     tf.summary.scalar('avg.reward/ep.', tf.reduce_mean(rewards))
