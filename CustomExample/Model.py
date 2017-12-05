@@ -142,12 +142,11 @@ class DQN:
             tree_idx, batch_memory, ISWeights = self.memory.sample(self.BATCH_SIZE)
 
             for i in range(self.BATCH_SIZE):
-                idx = tree_idx[i]
-                state.append(self.batch_memory[idx][0])
-                next_state.append(self.batch_memory[idx][1])
-                action.append(self.batch_memory[idx][2])
-                reward.append(self.batch_memory[idx][3])
-                terminal.append(self.batch_memory[idx][4])
+                state.append(batch_memory[i][0])
+                next_state.append(batch_memory[i][1])
+                action.append(batch_memory[i][2])
+                reward.append(batch_memory[i][3])
+                terminal.append(batch_memory[i][4])
 
         else:
             tree_idx = random.sample(range(0, len(self.memory)), self.BATCH_SIZE)
