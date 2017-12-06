@@ -1,6 +1,6 @@
 import gym
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import tensorflow as tf
 import gc
 
@@ -9,24 +9,23 @@ from replay_buffer import ReplayBuffer
 from ou_noise import OUNoise
 import util
 
+tf.flags.DEFINE_string('target', 'LunarLander-v2', 'target environment to train/test')
+tf.flags.DEFINE_boolean('train', False, '')
+tf.flags.DEFINE_boolean('render', True, '')
+tf.flags.DEFINE_integer('num_game', 10000, 'the number of games')
+
 if __name__ == '__main__':
-    import argparse
+    flags = tf.flags.FLAGS
 
-    parser = argparse.ArgumentParser()
-    # parser.add_argument('target', nargs='?', default='SpaceInvaders-v0')
-    parser.add_argument('target', nargs='?', default='LunarLander-v2')
-    parser.add_argument('--num_game', default=30000)
-    args = parser.parse_args()
+    target = flags.target
+    nGame = flags.num_game
+    bRender = flags.render
+    bTrain = flags.train
 
-    env = gym.make(args.target)
-
-    gc.enable()
-
-    reward = 0
-    bRender = False
-    bTrain = True
     batch_size = 64
     gamma = .99
+
+    env = gym.make(target)
 
     dim_state = env.observation_space.shape[0]
     dim_action = env.action_space.shape[0]
@@ -56,26 +55,25 @@ if __name__ == '__main__':
     
     R = ReplayBuffer()
     N = OUNoise(dim_action, sigma=.3)
-    
-    reward_list = []
-    
     time_step = 0
-
-    for ep in range(args.num_game):
+    
+    gc.enable()
+    for ep in range(nGame):
         N.reset()
         s_t = env.reset()
         r_t = 0
         done = False
         reward = 0
-        cnt = 0
+        if ep % 10 == 0:
+            reward_list = []
+
         while not done:
-            if bRender:# and cnt % 3 == 0:
-                env.render()
+            if bRender:
+                env.render() 
 
             a_t = actor.act([s_t]) + N.noise()
             a = sess.run(tf.argmax(a_t[0]))
             s_new, r_t, done, _ = env.step(a)
-            reward = reward + r_t
 
             if bTrain:
                 R.store(s_t, a_t[0], r_t, s_new, done)
@@ -102,20 +100,19 @@ if __name__ == '__main__':
                 critic.update_target_network()
 
             s_t = s_new
-            cnt += 1
             time_step += 1
+            reward += r_t
 
-            reward_list.append(reward)
+        reward_list.append(reward)
 
         print('ep #{} score: {}'.format(ep, reward))
 
-        if bTrain:
+        if bTrain and ep > 0:
             if ep % 10 == 0:
                 summary = sess.run(summary_merged, feed_dict={rewards: reward_list})
                 writer.add_summary(summary, time_step)
-                reward_list = []
 
-            if ep > 0 and ep % 50 == 0:
+            if ep % 50 == 0:
                 saver.save(sess, 'model/' + args.target + '.ckpt', global_step=time_step)
                 gc.collect()
                 print(gc.get_stats())
