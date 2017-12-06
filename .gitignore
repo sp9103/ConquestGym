@@ -3,7 +3,7 @@
 *.xml
 *.index
 *.meta
-*/model/*
+*/*model*/*
 */logs/*
 *.pyc
 

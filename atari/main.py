@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     # parser.add_argument('target', nargs='?', default='SpaceInvaders-v0')
-    parser.add_argument('target', nargs='?', default='CartPole-v0')
+    parser.add_argument('target', nargs='?', default='LunarLander-v2')
     parser.add_argument('--num_game', default=30000)
     args = parser.parse_args()
 
@@ -30,6 +30,8 @@ if __name__ == '__main__':
 
     dim_state = env.observation_space.shape[0]
     dim_action = env.action_space.shape[0]
+
+    print('dim_state: {}, dim_action: {}'.format(dim_state, dim_action))
     
     sess = tf.Session()
 
