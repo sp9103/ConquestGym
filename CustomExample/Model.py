@@ -19,7 +19,7 @@ class DQN:
     # 앞의 상태까지 고려하기 위함입니다.
     STATE_LEN = 4
 
-    def __init__(self, session, width, height, n_action, prioritized=False):
+    def __init__(self, session, width, height, n_action, prioritized=True):
         self.session = session
         self.n_action = n_action
         self.width = width
@@ -46,7 +46,7 @@ class DQN:
         else :
             self.memory = deque()
 
-        self.cost, self.train_op = self._build_op()
+        self.cost, self.train_op, self.abs_error = self._build_op()
 
         # 학습을 더 잘 되게 하기 위해,
         # 손실값 계산을 위해 사용하는 타겟(실측값)의 Q value를 계산하는 네트웍을 따로 만들어서 사용합니다
@@ -70,15 +70,17 @@ class DQN:
         one_hot = tf.one_hot(self.input_A, self.n_action, 1.0, 0.0)
         Q_value = tf.reduce_sum(tf.multiply(self.Q, one_hot), axis=1)       #axis=1 을 해주지 않아서 DDQN과 DQN의 차이가 없었을지도............ 재실험이 필요함
         TD_diff = self.input_Y - Q_value
+        abs_error = []
         if self.prioritized:
-            self.abs_error = tf.abs(TD_diff)    # for updating Sumtree
+            abs_error = tf.abs(TD_diff)    # for updating Sumtree
             mul = tf.multiply(self.ISWeights, TD_diff)
             cost = tf.reduce_sum(mul)
+            #cost = tf.reduce_mean(tf.square(TD_diff))
         else:
             cost = tf.reduce_mean(tf.square(TD_diff))
         train_op = tf.train.AdamOptimizer(1e-6).minimize(cost)
 
-        return cost, train_op
+        return cost, train_op, abs_error
 
     # refer: https://github.com/hunkim/ReinforcementZeroToAll/
     def update_target_network(self):
@@ -189,13 +191,13 @@ class DQN:
                 Y.append(reward[i] + self.GAMMA * np.max(target_Q_value[i]))
 
         if self.prioritized:
-            _, abs_errors, self.cost = self.sess.run([self._train_op, self.abs_errors, self.loss],
+            _, _, abs_error = self.session.run([self.train_op, self.cost, self.abs_error],
                                                      feed_dict={self.input_X: state,
                                                                 self.input_A: action,
-                                                                self.ISWeights: ISWeights,
-                                                                self.input_Y : Y
+                                                                self.input_Y: Y,
+                                                                self.ISWeights: ISWeights
                                                                 })
-            self.memory.batch_update(tree_idx, abs_errors)  # update priority
+            self.memory.batch_update(tree_idx, abs_error)  # update priority
         else :
            self.session.run(self.train_op,
                          feed_dict={
