@@ -2,6 +2,8 @@
 
 ### Todo
 - DDPG
-  - implement actor and critic
-- [pending] DQN
+  - Clean code
+  - Plot the loss graph
+  - CNN version
+- DQN
   - add training and replaying routines

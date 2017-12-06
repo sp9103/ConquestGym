@@ -17,20 +17,23 @@ class NetworkBase:
         self.learning_rate = learning_rate
 
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+
         
     # refer to http://pemami4911.github.io/blog/2016/08/21/ddpg-rl.html#Tensorflow
-    # which one is better between multiple run and single run
     def update_target_network(self, b_init=False):
         if b_init:
-            self.sess.run([self.target_weights[i].assign(self.weights[i]) for i in range(len(self.weights))])
+            self.sess.run(self.__update_params0)
         else:
-            tau = self.tau
-            self.sess.run([self.target_weights[i].assign(tau * self.weights[i] + (1-tau) * self.target_weights[i]) for i in range(len(self.weights))])
+            self.sess.run(self.__update_params)
+
+    def init_param_updater(self):
+        self.__update_params0 = \
+                [self.target_weights[i].assign(self.weights[i]) for i in range(len(self.weights))]
+        self.__update_params = \
+                [self.target_weights[i].assign(self.tau * self.weights[i] + (1-self.tau) * self.target_weights[i]) for i in range(len(self.weights))]
 
 
 class ActorNetwork(NetworkBase):
-    UNIFORM_MAX_BOUND = 3e-3
-
     def __init__(self, sess, dim_state, dim_action, batch_size=64, tau=1e-3, learning_rate=1e-4):
         super().__init__(sess, dim_state, dim_action, batch_size, tau, learning_rate)
 
@@ -43,6 +46,8 @@ class ActorNetwork(NetworkBase):
 
         self.target_network, self.target_state = self.__build_network('actor_target')
         self.target_weights = tf.trainable_variables()[len(self.weights):]
+
+        self.init_param_updater()
 
         self.base_ind = len(self.weights) + len(self.target_weights)
 
@@ -69,10 +74,12 @@ class ActorNetwork(NetworkBase):
             return model, state
 
     def act(self, states): # \mu(s|\theta^\mu
-        return self.sess.run(self.network, feed_dict={self.state: states})
+        return self.sess.run(self.network, 
+                feed_dict={self.state: states})
 
     def target_act(self, states): # \mu'(s|\theta^{\mu'}
-        return self.sess.run(self.target_network, feed_dict={self.target_state: states})
+        return self.sess.run(self.target_network, 
+                feed_dict={self.target_state: states})
 
     def update_policy(self, states, action_grads):
         self.sess.run(self.train, 
@@ -93,6 +100,10 @@ class CriticNetwork(NetworkBase):
 
         self.target_network, self.target_state, self.target_action = self.__build_network('critic_target')
         self.target_weights = tf.trainable_variables()[base_ind:]
+
+        self.init_param_updater()
+
+        self.gradient = tf.gradients(self.network, self.action)
 
     def __build_network(self, name):
         with tf.variable_scope(name):
@@ -127,9 +138,10 @@ class CriticNetwork(NetworkBase):
                 feed_dict={self.target_state: states, self.target_action: actions})
 
     def update_critic(self, states, actions, predQs):
-        self.sess.run(self.train, feed_dict={self.state: states, self.action: actions, self.predicted_Q: predQs})
+        self.sess.run(self.train,
+                feed_dict={self.state: states, self.action: actions, self.predicted_Q: predQs})
 
     def dQda(self, states, actions):
-        return self.sess.run(tf.gradients(self.network, self.action),
+        return self.sess.run(self.gradient,
                 feed_dict={self.state: states, self.action: actions})
 
