@@ -90,7 +90,7 @@ class Memory(object):
         self.tree.add(max_p, transition)  # set the max p for new p
 
     def sample(self, n):
-        ISWeights = np.ones((n, 1))
+        ISWeights = np.ones((n,))
         b_idx = np.empty((n,), dtype=np.int32)
         #b_memory = np.empty((n, self.tree.data[0].shape[0], self.tree.data[0].shape[1], self.tree.data[0].shape[2]))
         b_memory = []
@@ -106,28 +106,25 @@ class Memory(object):
         else:
             pri_seg = self.tree.total_p / n  # priority segment
             self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])  # max = 1
-            w_max = 0
 
+            #w_max 일 때는 min_prob일 때임. 그러므로 수식은 (N*prob)^(-beta) / (N*min_prob>^(-beta) = (prob / min_prob)^(-beta)
             min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p  # for later calculate ISweight
             for i in range(n):
                 a, b = pri_seg * i, pri_seg * (i + 1)
                 v = np.random.uniform(a, b)
                 idx, p, data = self.tree.get_leaf(v)
                 prob = p / self.tree.total_p
-                ISWeights[i, 0] = np.power(prob / min_prob, -self.beta)
+                ISWeights[i] = np.power(prob / min_prob, -self.beta)
                 b_idx[i] = idx
                 b_memory.append(data)
 
-                if w_max < ISWeights[i, 0]:
-                    w_max = ISWeights[i, 0]
-
-            ISWeights = ISWeights / w_max
         return b_idx, b_memory, ISWeights
 
     def batch_update(self, tree_idx, abs_errors):
         if self.tree.IsFull:
             abs_errors += self.epsilon  # convert to abs and avoid 0
-            clipped_errors = np.minimum(abs_errors, self.abs_err_upper)
+            #clipped_errors = np.minimum(abs_errors, self.abs_err_upper)    #Cliping이 필요한가?
+            clipped_errors = abs_errors
             ps = np.power(clipped_errors, self.alpha)
             for ti, p in zip(tree_idx, ps):
                 self.tree.update(ti, p)
