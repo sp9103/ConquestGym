@@ -10,7 +10,7 @@ from SumTree import Memory
 class DQN:
     # 학습에 사용할 플레이결과를 얼마나 많이 저장해서 사용할지를 정합니다.
     # (플레이결과 = 게임판의 상태 + 취한 액션 + 리워드 + 종료여부)
-    REPLAY_MEMORY = 10000
+    REPLAY_MEMORY = 2000
     # 학습시 사용/계산할 상태값(정확히는 replay memory)의 갯수를 정합니다.
     BATCH_SIZE = 32
     # 과거의 상태에 대한 가중치를 줄이는 역할을 합니다.
@@ -42,7 +42,7 @@ class DQN:
         # prioritized experience replay
         if self.prioritized:
             self.memory = Memory(capacity=self.REPLAY_MEMORY)
-            self.ISWeights = tf.placeholder(tf.float32, [None,1], name='IS_weights')
+            self.ISWeights = tf.placeholder(tf.float32, [None], name='IS_weights')
         else :
             self.memory = deque()
 
@@ -73,7 +73,7 @@ class DQN:
         abs_error = []
         if self.prioritized:
             abs_error = tf.abs(TD_diff)    # for updating Sumtree
-            mul = tf.multiply(self.ISWeights, TD_diff)
+            mul = tf.multiply(self.ISWeights, tf.square(TD_diff))
             cost = tf.reduce_sum(mul)
             #cost = tf.reduce_mean(tf.square(TD_diff))
         else:
