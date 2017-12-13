@@ -34,7 +34,7 @@ def train():
     sess = tf.Session()
 
     game = Game(SCREEN_WIDTH, SCREEN_HEIGHT, show_game=False)
-    brain = DQN(sess, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_ACTION, prioritized=True)
+    brain = DQN(sess, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_ACTION, prioritized=False)
 
     rewards = tf.placeholder(tf.float32, [None])
     tf.summary.scalar('avg.reward/ep.', tf.reduce_mean(rewards))
@@ -96,7 +96,7 @@ def train():
 
             if time_step > OBSERVE and time_step % TRAIN_INTERVAL == 0:
                 # DQN 으로 학습을 진행합니다.
-                brain.train()
+                brain.train_DDQN()
 
             if time_step % TARGET_UPDATE_INTERVAL == 0:
                 # 타겟 네트웍을 업데이트 해 줍니다.
@@ -110,7 +110,7 @@ def train():
 
         if episode % 10 == 0:
             summary = sess.run(summary_merged, feed_dict={rewards: total_reward_list})
-            writer.add_summary(summary, time_step)
+            writer.add_summary(summary, episode + 1)
             total_reward_list = []
 
         if episode % 100 == 0:

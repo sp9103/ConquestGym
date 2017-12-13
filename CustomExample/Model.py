@@ -10,7 +10,7 @@ from SumTree import Memory
 class DQN:
     # 학습에 사용할 플레이결과를 얼마나 많이 저장해서 사용할지를 정합니다.
     # (플레이결과 = 게임판의 상태 + 취한 액션 + 리워드 + 종료여부)
-    REPLAY_MEMORY = 2000
+    REPLAY_MEMORY = 10000
     # 학습시 사용/계산할 상태값(정확히는 replay memory)의 갯수를 정합니다.
     BATCH_SIZE = 32
     # 과거의 상태에 대한 가중치를 줄이는 역할을 합니다.
@@ -19,7 +19,7 @@ class DQN:
     # 앞의 상태까지 고려하기 위함입니다.
     STATE_LEN = 4
 
-    def __init__(self, session, width, height, n_action, prioritized=True):
+    def __init__(self, session, width, height, n_action, prioritized=False):
         self.session = session
         self.n_action = n_action
         self.width = width
@@ -207,7 +207,7 @@ class DQN:
                          })
 
     def train_DDQN(self):
-        state, next_state, action, reward, terminal, tree_idx = self._sample_memory()
+        state, next_state, action, reward, terminal, tree_idx, ISWeights = self._sample_memory()
 
         target_Q_value = self.session.run(self.target_Q,
                                           feed_dict={self.input_X: next_state})
@@ -223,11 +223,9 @@ class DQN:
                 Q_prime = target_Q_value[i][main_action[i]]
                 Y.append(reward[i] + self.GAMMA * Q_prime)
 
-        _, cost_val = self.session.run([self.train_op, self.cost],
-                                       feed_dict={
-                                           self.input_X: state,
-                                           self.input_A: action,
-                                           self.input_Y: Y
-                                       })
-
-        return cost_val
+        self.session.run([self.train_op, self.cost],
+                         feed_dict={
+                             self.input_X: state,
+                             self.input_A: action,
+                             self.input_Y: Y
+                         })
