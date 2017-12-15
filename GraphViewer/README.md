@@ -10,3 +10,6 @@ Result compare<br>
 
 ### TO-DO
 1. graph color and pattern add.
+
+#Example Graph
+![Example](./Example.jpg)
