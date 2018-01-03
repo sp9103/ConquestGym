@@ -4,7 +4,7 @@ import argparse
 import os
 import numpy as np
 
-SMOOTHING_INTERVAL = 5
+SMOOTHING_INTERVAL = 20
 
 def smoothing(src):
     aver_box = np.zeros((SMOOTHING_INTERVAL, ), dtype=np.float64)
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     path  = args.path
 
     pieces = []
-    style = [ 'bs-', 'r^--']
+    style = [ 'bs-', 'r^--', 'y^--']
     style_idx = 0
     filenames = os.listdir(path)
     for filename in filenames:
