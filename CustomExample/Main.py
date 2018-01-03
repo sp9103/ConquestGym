@@ -5,8 +5,8 @@ import random
 import time
 
 from game2 import Game
-from Model import DQN
-
+#from Model import DQN
+from DuelingNetModel import DuelDQN
 
 tf.app.flags.DEFINE_boolean("train", False, "학습모드. 게임을 화면에 보여주지 않습니다.")
 FLAGS = tf.app.flags.FLAGS
@@ -34,7 +34,8 @@ def train():
     sess = tf.Session()
 
     game = Game(SCREEN_WIDTH, SCREEN_HEIGHT, show_game=False)
-    brain = DQN(sess, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_ACTION, prioritized=False)
+    #brain = DQN(sess, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_ACTION, prioritized=False)
+    brain = DuelDQN(sess, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_ACTION)
 
     rewards = tf.placeholder(tf.float32, [None])
     tf.summary.scalar('avg.reward/ep.', tf.reduce_mean(rewards))
@@ -96,7 +97,8 @@ def train():
 
             if time_step > OBSERVE and time_step % TRAIN_INTERVAL == 0:
                 # DQN 으로 학습을 진행합니다.
-                brain.train_DDQN()
+                #brain.train_DDQN()
+                brain.train()
 
             if time_step % TARGET_UPDATE_INTERVAL == 0:
                 # 타겟 네트웍을 업데이트 해 줍니다.
