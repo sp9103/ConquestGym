@@ -5,6 +5,8 @@ from collections import deque
 
 TRAIN_INTERVAL = 4
 BATCH_SIZE = 32
+GAMMA = 0.99
+TAU = 0.01
 
 class DDPG:
     def __init__(self, session , width, height, n_action, memory_size):
@@ -18,9 +20,55 @@ class DDPG:
         self.state = None
         self.memory = deque()
 
+        self.input_X = tf.placeholder(tf.float32, [None, width, height, self.STATE_LEN])  # 네트워크 입력용
+        self.input_A = tf.placeholder(tf.float32, [None])
+        self.input_Y = tf.placeholder(tf.float32, [None])
+        self.input_Q = tf.placeholder(tf.float32, [None])
+
+        self.main_Q = self._build_critic("Main_Q")
+        self.target_Q = self._build_critic("Target_Q")
+
+        self.main_A = self._build_actor("Main_A")
+        self.target_Q = self._build_actor("Target_A")
+
+        ## network param
+        self.am_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Main_A')
+        self.at_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Target_A')
+        self.cm_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Main_Q')
+        self.ct_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Target_Q')
+
+        td_error = tf.losses.mean_squared_error(labels=self.input_Y, predictions=self.main_Q)
+        self.ctrain = tf.train.AdamOptimizer().minimize(td_error, var_list=self.cm_params)
+
+        #actor는 어떻게 업데이트 해야하지?
+        a_loss = -tf.reduce_
+        self.atrain = tf.train.AdamOptimizer().minimize(a_loss, var_list=self.am_params)
+
+    def net_update(self):
+        for at, am, ct, cm in zip(self.at_params, self.am_params, self.cm_params, self.ct_params):
+            tf.assign(at, (1 - TAU) * at + TAU * am)
+            tf.assign(ct, (1 - TAU) * ct + TAU * cm)
+
     def learn(self):
+        state, next_state, action, reward, terminal = self.sample()
+
+        #about Critic
+        q = self.session.run(self.target_Q, feed_dict={self.input_X:next_state})
+        Y = []
+        for i in range(self.BATCH_SIZE):
+            if terminal[i]:
+                Y.append(reward[i])
+            else:
+                Y.append(reward[i] + self.GAMMA * q)
+        self.session.run(self.ctrain, feed_dict={self.input_Y: Y, self.input_X: state})
+
+        #about Actor
+
+        #update network
+        self.net_update()
 
     def get_action(self, state):
+        self.session.run(self.main_A, feed_dict={self.input_X: [state]})
 
     def remember(self, state, action, reward, terminal):
         next_state = np.reshape(state, (self.width, self.height, 1))
@@ -48,16 +96,29 @@ class DDPG:
         state = [state for _ in range(self.STATE_LEN)]
         self.state = np.stack(state, axis=2)
 
-    def _build_base_net(self, name):
-        with tf.variable_scope(name):
+    def _build_critic(self, scope):
+        with tf.variable_scope(scope):
             model = tf.layers.conv2d(self.input_X, 32, [4, 4], padding='same', activation=tf.nn.relu)
             model = tf.layers.conv2d(model, 64, [4, 4], padding='same', activation=tf.nn.relu)
             model = tf.layers.conv2d(model, 64, [2, 2], padding='same', activation=tf.nn.relu)
             model = tf.contrib.layers.flatten(model)
-            model = tf.layers.dense(model, 512, activation=tf.nn.relu)
+            model = tf.layers.dense(model, 128, activation=tf.nn.relu)
 
-    def _build_critic(self):
-        model = self._build_base_net('CRITIC')
+            model_a = tf.layers.dense(self.input_A, 128, activation=tf.nn.relu)
+            model = model + model_a                                                 #이부분이 의미가 맞는지 확인이 필요함
+            Q = tf.layers.dense(model, 1)
 
-    def _build_actor(self):
-        model = self._build_base_net('ACTOR')
+        return Q
+
+    def _build_actor(self, scope):
+        model = tf.layers.conv2d(self.input_X, 32, [4, 4], padding='same', activation=tf.nn.relu)
+        model = tf.layers.conv2d(model, 64, [4, 4], padding='same', activation=tf.nn.relu)
+        model = tf.layers.conv2d(model, 64, [2, 2], padding='same', activation=tf.nn.relu)
+        model = tf.contrib.layers.flatten(model)
+        model = tf.layers.dense(model, 512, activation=tf.nn.relu)
+        a = tf.layers.dense(model, self.n_action)
+        a = tf.nn.softmax(a)
+
+        return a
+
+

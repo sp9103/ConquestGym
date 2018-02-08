@@ -54,13 +54,14 @@ def train():
         ddpg.InitState(state)
 
         while not terminal:
-            action = ddpg.get_action(state)
+            a = ddpg.get_action(state)
             a = np.clip(np.random.normal(a, var), 0, 2)
 
-            state, reward, terminal = game.step(action)
+            state, reward, terminal = game.step(a)
             total_reward += reward
 
-            if ddpg.pointer > REPLAY_MEMORY:
+            mem_count = ddpg.memory.count()
+            if mem_count > REPLAY_MEMORY:
                 var *= .9995  # decay the action randomness
                 ddpg.learn()
 
