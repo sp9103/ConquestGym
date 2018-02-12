@@ -8,6 +8,9 @@ BATCH_SIZE = 32
 GAMMA = 0.99
 TAU = 0.01
 
+LEARNING_RATE_CRITIC = 1e-4
+LEARNING_RATE_ACTOR = 1e-4
+
 class DDPG:
     def __init__(self, session , width, height, n_action, memory_size):
         self.session = session
@@ -23,7 +26,6 @@ class DDPG:
         self.input_X = tf.placeholder(tf.float32, [None, width, height, self.STATE_LEN])  # 네트워크 입력용
         self.input_A = tf.placeholder(tf.float32, [None])
         self.input_Y = tf.placeholder(tf.float32, [None])
-        self.input_Q = tf.placeholder(tf.float32, [None])
 
         self.main_Q = self._build_critic("Main_Q")
         self.target_Q = self._build_critic("Target_Q")
@@ -38,11 +40,12 @@ class DDPG:
         self.ct_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Target_Q')
 
         td_error = tf.losses.mean_squared_error(labels=self.input_Y, predictions=self.main_Q)
-        self.ctrain = tf.train.AdamOptimizer().minimize(td_error, var_list=self.cm_params)
+        self.ctrain = tf.train.AdamOptimizer(LEARNING_RATE_CRITIC).minimize(td_error, var_list=self.cm_params)
 
         #actor는 어떻게 업데이트 해야하지?
-        a_loss = -tf.reduce_
-        self.atrain = tf.train.AdamOptimizer().minimize(a_loss, var_list=self.am_params)
+        self.action_gradient = tf.placeholder(tf.float32, [None, self.n_action])
+        gradient = tf.gradients(self.main_A, self.weights, -self.action_gradient)
+        self.atrain = tf.train.AdamOptimizer(LEARNING_RATE_ACTOR).apply_gradients(zip(gradient, self.main_A))
 
     def net_update(self):
         for at, am, ct, cm in zip(self.at_params, self.am_params, self.cm_params, self.ct_params):
@@ -53,7 +56,7 @@ class DDPG:
         state, next_state, action, reward, terminal = self.sample()
 
         #about Critic
-        q = self.session.run(self.target_Q, feed_dict={self.input_X:next_state})
+        q = self.session.run(self.target_Q, feed_dict={self.input_X: next_state})
         Y = []
         for i in range(self.BATCH_SIZE):
             if terminal[i]:
@@ -63,6 +66,7 @@ class DDPG:
         self.session.run(self.ctrain, feed_dict={self.input_Y: Y, self.input_X: state})
 
         #about Actor
+        self.session.run(self.atrain, feed_dict={})
 
         #update network
         self.net_update()
