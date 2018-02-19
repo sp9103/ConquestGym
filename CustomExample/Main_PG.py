@@ -42,9 +42,12 @@ def train():
     writer = tf.summary.FileWriter('logs', sess.graph)
     summary_merged = tf.summary.merge_all()
 
-    epsilon = 1.0
-    var = 3
+    epsilon = 0.0001
+    var = 1
     total_reward_list = []
+    time_step = 0
+
+    ddpg.copy_main_to_target_net()
 
     for episode in range(MAX_EPISODE):
         terminal = False
@@ -55,15 +58,25 @@ def train():
 
         while not terminal:
             a = ddpg.get_action(state)
-            a = np.clip(np.random.normal(a, var), 0, 2)
+            a = np.random.normal(a, var)
 
-            state, reward, terminal = game.step(a)
+            min_a = np.min(a)
+            a = (a - min_a)
+            sum_a = np.sum(a)
+            a = a / sum_a
+            choosed_action = np.random.choice(NUM_ACTION, 1, p=a)
+
+            state, reward, terminal = game.step(choosed_action)
             total_reward += reward
 
+            ddpg.remember(state, a, reward, terminal)
             mem_count = ddpg.memory.count()
             if mem_count > REPLAY_MEMORY:
                 var *= .9995  # decay the action randomness
-                ddpg.learn()
+                if time_step % TRAIN_INTERVAL == 0:
+                    ddpg.learn()
+
+            time_step += 1
 
         print('게임횟수: %d 점수: %.1f' % (episode + 1, total_reward))
 
@@ -75,8 +88,8 @@ def train():
             total_reward_list = []
 
 def main(_):
-    if FLAGS.train:
-        train()
+    #if FLAGS.train:
+    train()
 
 if __name__ == '__main__':
     tf.app.run()
